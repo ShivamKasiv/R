@@ -1,0 +1,128 @@
+---
+title: "Sales Trends"
+author: "Shivam Kasiv"
+date: "13/05/2021"
+output: html_document
+---
+
+
+
+Importing Dataset
+```{r}
+setwd("C:/Users/Skasiv/Dropbox/My PC (LAPTOP-L8J5JVJ8)/Desktop/DVA/R")
+sales_data=read.csv("C:/Users/Skasiv/Dropbox/My PC (LAPTOP-L8J5JVJ8)/Desktop/DVA/R/Visualization Case Study/SalesData.csv")
+
+```
+
+
+```{r,message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(plotly)
+library(tidyr)
+library(scales)
+library(plotrix)
+```
+
+Ques1
+```{r}
+old_data=sales_data%>%group_by(Region)%>%
+        summarise(TotalSales2015 = sum(Sales2015),TotalSales2016 = sum(Sales2016))
+
+new_data=gather(old_data,key =Year,value = Sales,TotalSales2015,TotalSales2016)
+
+ggplotly(new_data%>%ggplot(aes(x=Region,y=Sales,fill=Year))+geom_bar(stat="identity",position = "dodge")+scale_y_continuous(labels =label_number(suffix=" M",scale=1e-6))+geom_text(aes(label=round(Sales,0)),size=3,vjust=-0.25)+ggtitle("Sales by Region"))
+```
+
+
+Ques 2
+
+
+
+
+2D Pie Chart A
+
+```{r}
+data2=sales_data%>%group_by(Region)%>%summarise(Sales16=sum(Sales2016))
+pie(data2$Sales16,labels=data2$Region,radius = 1,border = "black",main="Percentage Sales For Each Region In 2016")
+```
+
+
+
+2D Pie Chart B
+```{r}
+pie(data2$Sales16,labels=paste0(round((data2$Sales16/sum(data2$Sales16))*100,0),"%"," : ",data2$Region),col=rainbow(length(data2$Sales16)),radius = 1,border = "black",main="Percentage Sales For Each Region In 2016 ")
+
+```
+
+3D Pie Chart
+```{r}
+pie3D(data2$Sales16,labels=paste0(round((data2$Sales16/sum(data2$Sales16))*100,0),"%"," : ",data2$Region),col=rainbow(length(data2$Sales16)),radius = 1,border = "black",explode = 0.12,main="Percentage Sales For Each Region In 2016 ")
+
+```
+Ques3
+```{r}
+
+options(dplyr.summarise.inform=FALSE)
+data3=sales_data%>%group_by(Region,Tier)%>%summarise(TotalSales2015=sum(Sales2015),TotalSales2016=sum(Sales2016))
+newdata3=gather(data3,key = Year,value = Sales,-Region,-Tier)
+
+newdata3%>%ggplot(aes(x=Tier,y=Sales,fill=Year))+geom_bar(stat="identity",position="dodge")+facet_wrap(~Region)+scale_y_continuous(labels =label_number(suffix=" M",scale=1e-6))+ggtitle("Sales By Region & Tiers")
+```
+
+Ques4
+```{r}
+data4=sales_data%>%filter(Region=="East")%>%group_by(State)%>%summarise(TotalSales2015=sum(Sales2015),TotalSales2016=sum(Sales2016))
+newdata4=gather(data4,key=Year,value=Sales,-State)
+newdata4%>%ggplot(aes(x=State,y=Sales,fill=Year))+geom_bar(width=0.6,stat="identity",position="dodge",color="black")+theme(axis.text.x=element_text(size=7))+scale_y_continuous(labels = label_number(suffix = "M",scale=1e-6))+ggtitle("Sales By State")
+```
+
+Ques5
+```{r}
+data5=sales_data%>%filter(Tier=="High")%>%group_by(Division)%>%summarise(TotalUnits2015=sum(Units2015),TotalUnits2016=sum(Units2016))
+newdata5=gather(data5,key=Year,value=Units,-Division)
+newdata5%>%ggplot(aes(x=Division,y=Units,fill=Year))+geom_bar(width=0.6,stat="identity",position = "dodge")+theme(axis.text.x=element_text(angle = 90, vjust = 0.5, hjust=1,size=7))+ggtitle("Units Sold By Division")
+```
+
+
+Ques6
+```{r}
+sales_data$Qtr=if_else(sales_data$Month == "Jan" | sales_data$Month == "Feb"|sales_data$Month == "Mar","Q1",if_else(sales_data$Month == "Apr"|sales_data$Month == "May" | sales_data$Month == "Jun","Q2",
+if_else(sales_data$Month == "Jul" | sales_data$Month == "Aug" | sales_data$Month == "Sep","Q3","Q4")))
+
+```
+
+
+Ques7
+```{r}
+data7=sales_data%>%group_by(Qtr)%>%summarise(TotalSales2015=sum(Sales2015),TotalSales2016=sum(Sales2016))
+newdata7=gather(data7,key=Year,value = Sales,-Qtr)
+newdata7%>%ggplot(aes(x=Qtr,y=Sales,fill=Year))+geom_bar(stat = "identity",position="dodge")+ggtitle("Quarter Wise Sales")+scale_y_continuous(labels = label_number(suffix = " M",scale=1e-6))
+```
+
+Ques8
+```{r}
+q1 = sales_data%>%group_by(Qtr,Tier)%>%filter(Qtr=="Q1")%>%summarise(TotalSales2015 = sum(Sales2015))
+q2 = sales_data%>%group_by(Qtr,Tier)%>%filter(Qtr=="Q2")%>%summarise(TotalSales2015 = sum(Sales2015))
+q3 = sales_data%>%group_by(Qtr,Tier)%>%filter(Qtr=="Q3")%>%summarise(TotalSales2015 = sum(Sales2015))
+q4 = sales_data%>%group_by(Qtr,Tier)%>%filter(Qtr=="Q4")%>%summarise(TotalSales2015 = sum(Sales2015))
+
+pie1 = round(q1$TotalSales2015/sum(q1$TotalSales2015)*100,1)
+pie2 = round(q2$TotalSales2015/sum(q2$TotalSales2015)*100,1)
+pie3 = round(q3$TotalSales2015/sum(q3$TotalSales2015)*100,1)
+pie4 = round(q4$TotalSales2015/sum(q4$TotalSales2015)*100,1)
+
+
+lbls1 = q1$Tier         
+lbls2 = q2$Tier      
+lbls3 = q3$Tier        
+lbls4 = q4$Tier        
+
+par(mfrow = c(2,2)) 
+pie(q1$TotalSales2015,labels = lbls2 ,radius = 1,main = "Qtr 1")
+pie(q2$TotalSales2015,labels = lbls2 ,radius = 1,main = "Qtr 2")
+pie(q3$TotalSales2015,labels = lbls3 ,radius = 1,main = "Qtr 3")
+pie(q4$TotalSales2015,labels = lbls4 ,radius = 1,main = "Qtr 4")
+```
+

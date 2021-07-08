@@ -1,0 +1,177 @@
+---
+title: "Retail Case Study"
+author: "Shivam Kasiv"
+date: "28/05/2021"
+output: html_document
+---
+
+Importing the data
+```{r}
+setwd("C:/Users/Skasiv/Dropbox/My PC (LAPTOP-L8J5JVJ8)/Desktop/DVA")
+customer=read.csv("C:/Users/Skasiv/Dropbox/My PC (LAPTOP-L8J5JVJ8)/Desktop/DVA/R/Retail Case Study/Customer.csv")
+prod_cat_info=read.csv("C:/Users/Skasiv/Dropbox/My PC (LAPTOP-L8J5JVJ8)/Desktop/DVA/R/Retail Case Study/prod_cat_info.csv")
+transactions=read.csv("C:/Users/Skasiv/Dropbox/My PC (LAPTOP-L8J5JVJ8)/Desktop/DVA/R/Retail Case Study/Transactions.csv")
+```
+
+
+
+
+Loading the packages to the library
+```{r,message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(vtree)
+library(psych)
+library(lubridate)
+library(eeptools)
+```
+
+
+Ques 1
+```{r}
+m1=merge(merge(transactions,prod_cat_info,by.x=c("prod_cat_code","prod_subcat_code"),by.y=c("prod_cat_code","prod_sub_cat_code")),customer,by.x = "cust_id",by.y = "customer_Id")
+
+m2=inner_join(inner_join(transactions,prod_cat_info,by=c("prod_cat_code"="prod_cat_code","prod_subcat_code"="prod_sub_cat_code")),customer,by=c("cust_id"="customer_Id"))
+
+```
+
+
+Ques 2
+  2.a
+```{r}
+glimpse(m2)
+```
+
+  2.b
+```{r}
+head(m2,10)
+```
+```{r}
+tail(m2,10)
+```
+  2.c
+```{r}
+summary(m2[,c("prod_cat_code","prod_subcat_code","Qty","Rate","Tax","total_amt","city_code")])
+```
+
+  2.d
+```{r}
+apply(m2[c("Store_type","prod_cat","prod_subcat","Gender")],2,table)
+```
+
+Ques 3
+
+Histograms
+```{r}
+conti=c("prod_cat_code","prod_subcat_code","Qty","Rate","Tax","total_amt","city_code")
+
+par(mfrow=c(1,4))
+for (i in conti){
+  hist(m2[,i],main=names(m2[i]),xlab = i)
+}
+
+```
+
+
+Frequency Bars
+```{r}
+par(mfrow=c(1,2))
+catego=c("Store_type","prod_cat","prod_subcat","Gender")
+for (i in catego){
+  barplot(table(m2[,i]),main=names(m2[i]),xlab=i,ylab="Frequency")
+}
+
+```
+
+Ques 4
+  4.a
+```{r}
+transaction_date=dmy(m2$tran_date)
+start=min(transaction_date)
+end=max(transaction_date)
+da=time_length(difftime(max(transaction_date,na.rm = T),min(transaction_date,na.rm = T)),"days")
+weeks=floor(time_length(difftime(max(transaction_date),min(transaction_date)),"weeks"))
+months=floor(time_length(difftime(max(transaction_date),min(transaction_date)),"months"))
+years=floor(time_length(difftime(max(transaction_date),min(transaction_date)),"years"))
+
+
+writeLines(c(paste("Start Date :",start),paste("End Date :",end),paste("Difference in Days :",da),paste("Difference in weeks :",weeks),paste("Difference in Months :",months),paste("Difference in Years :",years)))
+
+```
+
+
+4.b
+```{r}
+
+m2%>%filter(total_amt<0)%>%distinct%>%nrow()
+
+```
+
+
+
+Ques 5
+```{r}
+vtree(filter(m2,m2$Gender=="M" | m2$Gender=="F"),"Gender prod_cat")
+```
+
+
+Ques 6
+```{r}
+customer %>% group_by(city_code) %>% summarise(count_of_customers=length(city_code),percentage=(round((length(customer_Id)/dim(customer)[1])*100,0))) %>% filter(percentage==max(percentage))
+```
+```{r}
+vtree(customer,"city_code")
+```
+
+
+
+Ques 7
+```{r}
+m2%>%group_by(Store_type)%>%summarise(quantity_sold=sum(Qty,na.rm=T),total_value=sum(total_amt,na.rm = T))%>%filter(quantity_sold==max(quantity_sold) |total_value==max(total_value))%>%select(Store_type)
+```
+
+
+Ques 8
+
+```{r}
+options(dplyr.summarise.inform = FALSE)
+m2%>%group_by(Store_type,prod_cat)%>%summarise(total_amount_earned=sum(total_amt))%>%filter(Store_type=="Flagship store" & prod_cat==c("Clothing","Electronics"))
+
+```
+
+
+Ques 9
+```{r}
+m2%>%group_by(prod_cat,Gender)%>%summarise(total_sum=sum(total_amt))%>%filter(prod_cat=="Electronics",Gender=="M")
+```
+
+
+Ques 10
+```{r}
+m2%>%filter(total_amt>0)%>%group_by(cust_id)%>%summarise(count_of_unique_transactions=n_distinct(transaction_id))%>%filter(count_of_unique_transactions>10)%>%select(cust_id)
+```
+
+Ques 11
+  11.a
+```{r}
+# getting customers with age between 25 and 35
+customers_with_specified_age=c(m2%>%group_by(cust_id)%>%summarise(last_transaction_date=first(tran_date),age=age_calc(dmy(DOB),enddate = dmy(last_transaction_date),units="years",precise=T))%>%filter(between(age,25,35))%>%distinct()%>%select(cust_id))
+
+
+# Converting into a vector
+customerss=unlist(customers_with_specified_age,use.names = FALSE)
+
+
+m2%>%
+  #filtering the m2 merged dataset and selecting records for customers with age between 25-35
+  filter(cust_id %in%customerss)%>%
+  #now computing the desired result
+  group_by(prod_cat)%>%summarise(total_amount_spent=sum(total_amt))%>%filter(prod_cat %in% c("Electronics","Books"))
+```
+
+  11.b
+```{r}
+
+m2%>%filter(cust_id %in%customerss)%>%filter(dmy(tran_date)>=ymd("2014-01-01") & dmy(tran_date)<=ymd("2014-03-01"))%>%summarise(total_amount_spent=sum(total_amt))
+```
+  

@@ -1,0 +1,178 @@
+---
+title: "EDA Credit Card Analysis"
+author: "Shivam Kasiv"
+date: "11/05/2021"
+---
+```{r}
+setwd("C:/Users/Skasiv/Dropbox/My PC (LAPTOP-L8J5JVJ8)/Desktop/DVA/R")
+
+Customer_Acquisition=read.csv("C:/Users/Skasiv/Dropbox/My PC (LAPTOP-L8J5JVJ8)/Desktop/DVA/R/Credit Card Case Study/Customer Acqusition.csv")
+
+Repayment=read.csv("C:/Users/Skasiv/Dropbox/My PC (LAPTOP-L8J5JVJ8)/Desktop/DVA/R/Credit Card Case Study/Repayment.csv")
+
+Spend=read.csv("C:/Users/Skasiv/Dropbox/My PC (LAPTOP-L8J5JVJ8)/Desktop/DVA/R/Credit Card Case Study/spend.csv")
+```
+
+
+```{r}
+library(dplyr)
+library(vtree)
+library(ggplot2)
+library(ggrepel)
+library(lubridate)
+library(psych)
+library(plotly)
+library(scales)
+
+merged=inner_join(inner_join(Spend,Repayment,by=c("Sl.No."="SL.No.")),Customer_Acquisition,by=c("Customer.x"="Customer"))
+View(merged)
+```
+
+
+
+Ques1
+1.a
+```{r}
+merged$Age[merged$Age<18]=mean(Customer_Acquisition$Age)
+
+```
+
+1.b
+```{r}
+merged$Amount.x[merged$Amount.x>merged$Limit]=(1/2)*merged$Limit[merged$Amount.x>merged$Limit]
+```
+
+1.c
+```{r}
+
+merged$Amount.y[merged$Amount.y>merged$Limit]=merged$Limit[merged$Amount.y>merged$Limit]
+```
+
+
+Ques2
+
+2.a
+```{r}
+print(paste("Number of Distinct Customers are",n_distinct(Customer_Acquisition$Customer)))
+```
+2.b
+```{r}
+distinct(data.frame(Customer_Acquisition$Segment))
+print(paste("There are",n_distinct(Customer_Acquisition$Segment),"Distinct Categories"))
+```
+
+2.c
+Since we have changed some spend values on the basis of limit for each customer
+The monthly average spend by customers is calculated using merged dataset only
+```{r}
+options(dplyr.summarise.inform=FALSE)
+merged%>%group_by(Month=months(dmy(Month.x)))%>%summarise(Average_Spend=round(mean(Amount.x),2))
+
+```
+
+2.d
+```{r}
+options(dplyr.summarise.inform=FALSE)
+merged%>%group_by(Month=months(dmy(Month.y)))%>%summarise(Average_Repayment=round(mean(Amount.y),2))
+```
+
+2.e
+```{r}
+merged%>%group_by(months(dmy(Month.x)))%>%summarise(Profit_for_bank=(((sum(Amount.y)-sum(Amount.x))*2.9)/100))
+
+```
+
+2.f
+```{r}
+merged%>%group_by(Type)%>%summarise(Frequency=length(Type))%>%arrange(desc(Frequency))%>%head(5)
+
+
+merged%>%group_by(Type)%>%summarise(Frequency=length(Type))%>%arrange(desc(Frequency))%>%head(5)%>%ggplot(aes(x=Type,y=Frequency))+geom_bar(stat="identity",color="dark blue",fill="yellow")
+```
+
+2.g
+```{r}
+merged%>%group_by(City)%>%summarise(Spend=sum(Amount.x))%>%arrange(desc(Spend))%>%head(1)%>%select(City)
+```
+
+2.h
+```{r}
+merged%>%group_by(Age_Group=cut(Age,seq(18,88,8)))%>%summarise(Money_Spend=sum(Amount.x))%>%arrange(desc(Money_Spend))%>%head(1)
+```
+2.h
+Visual Form
+```{r}
+merged%>%group_by(Age_Group=cut(Age,seq(18,88,8)))%>%summarise(Money_Spend=sum(Amount.x))%>%ggplot(aes(x=Age_Group,y=Money_Spend))+geom_bar(stat="identity",fill="dark blue")+scale_y_continuous(labels = label_number(suffix = " M", scale = 1e-6))
+
+```
+
+2.i
+```{r}
+merged%>%group_by(Customer=Customer.y)%>%summarise(Repayment=sum(Amount.y))%>%arrange(desc(Repayment))%>%head(10)
+```
+
+Ques 3
+```{r}
+merged%>%group_by(Year=year(dmy(Month.x)),City,Product)%>%summarise(Spend=sum(Amount.x))
+
+```
+
+
+Graphical Representation
+```{r}
+
+
+ggplotly(merged%>%group_by(year_city=paste(Year=year(dmy(Month.x)),City),Product)%>%summarise(Spend=sum(Amount.x))%>%ggplot(aes(x=year_city,y=Spend,fill=Product))+geom_bar(stat="identity",position = "dodge")+xlab("")+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+scale_y_continuous(labels = label_number(suffix = " M", scale = 1e-6)))
+```
+
+Ques4
+
+4.a
+```{r}
+merged%>%group_by(Month=months(dmy(Month.x)),City)%>%summarise(Total_Spend=sum(Amount.x))%>%ggplot(aes(x=City,y=Total_Spend,fill=Month))+geom_bar(stat="identity",position=position_dodge(width = 0.5))+scale_y_continuous(labels = label_number(suffix = " M", scale = 1e-6))+theme(axis.text.x=element_text(size=7))
+```
+
+
+4.b
+```{r}
+merged%>%group_by(Year=year(dmy(Month.x)),Type)%>%summarise(Spend=sum(Amount.x))%>%filter(Type=="AIR TICKET")%>%ggplot(aes(x=factor(Year),y=Spend,fill=Type))+geom_bar(stat="identity",width=0.32,fill="yellow",color="dark blue")+scale_y_continuous(labels=label_number(suffix = "M",scale = 1e-6))+ggtitle("Yearly spend on Air Tickets")+guides(fill=FALSE)+xlab("Year")
+
+```
+
+4.c
+```{r}
+merged%>%group_by(Month=months(dmy(Month.x)),Product)%>%summarise(Spend=sum(Amount.x))%>%ggplot(aes(x=Product,y=Spend,fill=Month))+geom_bar(stat="identity",position ="dodge",color="white")+scale_fill_manual(values = c("#141155","#b3b023","#d62e61","#a80000","#eab676","#2c8030","#873e23","#21130d","#A99a93","#A893a9","#93a99a","#F5d40f"))+scale_y_continuous(labels=label_number(suffix="M",scale = 1e-6))+ggtitle("        Monthly Spend For Each Product")
+```
+
+
+
+Ques5
+
+```{r echo=F}
+user_defined_function=function(x,y){
+  if(x=="Gold" & y=="Monthly"){
+    merged%>%group_by(Product,Month=months(dmy(Month.y)),City,Customer=Customer.y)%>%summarise(Repay=sum(Amount.y))%>%filter(Product=="Gold")%>%arrange(Month,City,desc(Repay))%>%slice_max(order_by =Repay , n = 10)
+  }
+  else if(x=="Silver" & y=="Monthly"){
+    merged%>%group_by(Product,Month=months(dmy(Month.y)),City,Customer=Customer.y)%>%summarise(Repay=sum(Amount.y))%>%filter(Product=="Silver")%>%arrange(Month,City,desc(Repay))%>%slice_max(order_by =Repay , n = 10)
+  }
+  else if(x=="Platinum" & y=="Monthly"){
+    merged%>%group_by(Product,Month=months(dmy(Month.y)),City,Customer=Customer.y)%>%summarise(Repay=sum(Amount.y))%>%filter(Product=="Platinum")%>%arrange(Month,City,desc(Repay))%>%slice_max(order_by =Repay , n = 10)
+  }
+  else if (x=="Gold" & y=="Yearly"){
+    merged%>%group_by(Product,Year=year(dmy(Month.y)),City,Customer=Customer.y)%>%summarise(Repay=sum(Amount.y))%>%filter(Product=="Gold")%>%arrange(Year,City,desc(Repay))%>%slice_max(order_by =Repay , n = 10)
+  }
+  else if(x=="Silver"  & y=="Yearly"){
+    merged%>%group_by(Product,Year=year(dmy(Month.y)),City,Customer=Customer.y)%>%summarise(Repay=sum(Amount.y))%>%filter(Product=="Silver")%>%arrange(Year,City,desc(Repay))%>%slice_max(order_by =Repay , n = 10)
+  }
+  else if(x=="Platinum" & y=="Yearly"){
+    merged%>%group_by(Product,Year=year(dmy(Month.y)),City,Customer=Customer.y)%>%summarise(Repay=sum(Amount.y))%>%filter(Product=="Platinum")%>%arrange(Year,City,desc(Repay))%>%slice_max(order_by =Repay , n = 10)
+  }
+}
+user_defined_function("Gold","Monthly")
+
+
+```
+
+
+
